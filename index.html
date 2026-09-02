@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Boardwalk Bowl - Ops Dashboard</title>
+    <title>Boardwalk Bowl - Advanced Ops Dashboard</title>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
         :root {
             --primary-blue: #0b3d91;
+            --secondary-blue: #17a2b8;
             --bg-color: #f4f8fa;
             --card-bg: #ffffff;
             --text-main: #333333;
@@ -20,16 +21,11 @@
             margin: 0;
             padding: 0;
         }
-        header {
-            background-color: var(--primary-blue);
-            color: white;
-            padding: 20px;
-            text-align: center;
-        }
+        header { background-color: var(--primary-blue); color: white; padding: 20px; text-align: center; }
         h1 { margin: 0; font-size: 24px; }
         h2 { margin: 5px 0 0 0; font-size: 16px; font-weight: normal; }
         
-        .container { max-width: 1200px; margin: 20px auto; padding: 0 20px; }
+        .container { max-width: 1300px; margin: 20px auto; padding: 0 20px; }
         
         /* Tabs Setup */
         .tabs { display: flex; gap: 10px; border-bottom: 2px solid #ddd; margin-bottom: 20px; }
@@ -41,8 +37,373 @@
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
-        /* Cards and Layouts */
+        /* Cards & Grid */
         .card { background: var(--card-bg); padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
         .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         @media (max-width: 768px) { .chart-grid { grid-template-columns: 1fr; } }
-        .chart-container { width: 100%; height: 3
+        .chart-container { width: 100%; height: 350px; }
+        
+        /* Inputs & Buttons */
+        select, input[type="file"], input[type="date"] { padding: 8px; font-size: 14px; margin: 5px 5px 5px 0; border: 1px solid #ccc; border-radius: 4px; }
+        button { background-color: var(--primary-blue); color: white; border: none; padding: 10px 20px; font-size: 14px; border-radius: 4px; cursor: pointer; margin-top: 10px;}
+        button:hover { opacity: 0.9; }
+        .btn-export { background-color: #28a745; }
+        .btn-import { background-color: #ffc107; color: black; }
+
+        /* Comparison Controls */
+        .compare-row { display: flex; align-items: center; gap: 15px; margin-bottom: 10px; flex-wrap: wrap; background: #f9f9f9; padding: 10px; border-radius: 6px; border-left: 4px solid var(--primary-blue);}
+        .compare-row.disabled { opacity: 0.5; border-left: 4px solid #ccc; }
+        
+        #summaryOutput { background: #e8f0fe; padding: 15px; border-radius: 4px; margin-top: 15px; border-left: 5px solid var(--primary-blue); }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>🎳 Boardwalk Bowl - Operations & KPI Command Center</h1>
+        <h2>Director of Operations Dashboard</h2>
+    </header>
+
+    <div class="container">
+        <div class="tabs">
+            <button class="tab-btn active" onclick="openTab(event, 'dashboardTab')">📊 KPI Dashboard</button>
+            <button class="tab-btn" onclick="openTab(event, 'uploadTab')">📂 Data Import & Backup</button>
+            <button class="tab-btn" onclick="openTab(event, 'presentationTab')">📑 Presentation Builder</button>
+        </div>
+
+        <div id="dashboardTab" class="tab-content active">
+            
+            <div class="card">
+                <h3 style="margin-top: 0;">Timeframe Comparison Engine</h3>
+                <div style="margin-bottom: 15px;">
+                    <label><strong>Department:</strong></label>
+                    <select id="categorySelect" onchange="renderCharts()">
+                        <option value="bowling">Bowling Operations</option>
+                        <option value="fb">Coasters Bar & Grill (F&B)</option>
+                        <option value="maintenance">Machine & Facility Maintenance</option>
+                        <option value="proshop">Front Desk & Pro Shop</option>
+                    </select>
+                </div>
+
+                <div class="compare-row" id="row1">
+                    <strong>Report 1:</strong>
+                    <select id="y1" onchange="renderCharts()"><option>2026</option><option>2025</option><option>2024</option></select>
+                    <select id="t1" onchange="updatePeriodOptions(1); renderCharts()">
+                        <option value="year">Full Year</option><option value="semester">Semester</option>
+                        <option value="trimester">Trimester (Quarter)</option><option value="month">Month</option>
+                    </select>
+                    <select id="v1" onchange="renderCharts()"><option value="all">All Year</option></select>
+                </div>
+
+                <div class="compare-row disabled" id="row2">
+                    <label><input type="checkbox" id="c2" onchange="toggleRow(2); renderCharts()"> <strong>Compare 2:</strong></label>
+                    <select id="y2" onchange="renderCharts()" disabled><option>2025</option><option>2026</option><option>2024</option></select>
+                    <select id="t2" onchange="updatePeriodOptions(2); renderCharts()" disabled>
+                        <option value="year">Full Year</option><option value="semester">Semester</option>
+                        <option value="trimester">Trimester (Quarter)</option><option value="month">Month</option>
+                    </select>
+                    <select id="v2" onchange="renderCharts()" disabled><option value="all">All Year</option></select>
+                </div>
+
+                <div class="compare-row disabled" id="row3">
+                    <label><input type="checkbox" id="c3" onchange="toggleRow(3); renderCharts()"> <strong>Compare 3:</strong></label>
+                    <select id="y3" onchange="renderCharts()" disabled><option>2024</option><option>2025</option><option>2026</option></select>
+                    <select id="t3" onchange="updatePeriodOptions(3); renderCharts()" disabled>
+                        <option value="year">Full Year</option><option value="semester">Semester</option>
+                        <option value="trimester">Trimester (Quarter)</option><option value="month">Month</option>
+                    </select>
+                    <select id="v3" onchange="renderCharts()" disabled><option value="all">All Year</option></select>
+                </div>
+            </div>
+            
+            <div class="chart-grid">
+                <div class="card"><div id="chart1" class="chart-container"></div></div>
+                <div class="card"><div id="chart2" class="chart-container"></div></div>
+                <div class="card"><div id="chart3" class="chart-container"></div></div>
+                <div class="card"><div id="chart4" class="chart-container"></div></div>
+            </div>
+        </div>
+
+        <div id="uploadTab" class="tab-content">
+            <div class="card">
+                <h3>System Data Management</h3>
+                <p>The system is currently pre-loaded with simulated data from 2024-2026. Use these tools to back up your configurations or move them between your laptop and iPad.</p>
+                
+                <hr style="border: 0; border-top: 1px solid #ddd; margin: 20px 0;">
+                
+                <h4>Export System Data</h4>
+                <p>Download the current 3-year database to your device.</p>
+                <button class="btn-export" onclick="exportDataJSON()">📥 Export Backup (.json)</button>
+                
+                <hr style="border: 0; border-top: 1px solid #ddd; margin: 20px 0;">
+
+                <h4>Restore System Data</h4>
+                <p>Upload a previously exported JSON backup file to restore the dashboard.</p>
+                <input type="file" id="jsonFileInput" accept=".json">
+                <br>
+                <button class="btn-import" onclick="importDataJSON()">📤 Restore Backup</button>
+                <p id="uploadStatus" style="color: green; font-weight: bold; margin-top: 10px; display: none;">Data restored successfully!</p>
+            </div>
+        </div>
+
+        <div id="presentationTab" class="tab-content">
+            <div class="card">
+                <h3>Executive Presentation Builder</h3>
+                <p>Generate a high-level summary of operations for ownership meetings based on the Report 1 timeframe selected in the dashboard.</p>
+                <button onclick="generatePresentation()">Generate Executive Summary</button>
+                <div id="summaryOutput" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- GLOBAL DATA STORE (3 Years Daily Data) ---
+        let globalDB = [];
+
+        const traceColors = ['#0b3d91', '#28a745', '#fd7e14']; // Colors for Report 1, 2, 3
+
+        // --- INIT & MOCK DATA GENERATION ---
+        function generate3YearsData() {
+            const db = [];
+            let currentDate = new Date(2024, 0, 1);
+            const endDate = new Date(2026, 11, 31);
+            
+            const rand = (min, max) => (Math.random() * (max - min) + min).toFixed(2);
+
+            while (currentDate <= endDate) {
+                // Add seasonal fluctuations (Summer months slightly busier for open play)
+                const month = currentDate.getMonth();
+                const isSummer = (month >= 5 && month <= 7) ? 1.2 : 1.0; 
+
+                db.push({
+                    date: currentDate.toISOString().split('T')[0],
+                    year: currentDate.getFullYear(),
+                    month: month + 1,
+                    // Bowling
+                    lineage: (parseFloat(rand(40, 80)) * isSummer).toFixed(1),
+                    leagueUtil: rand(60, 95),
+                    openPlayRev: rand(40, 70),
+                    avgBowlerSpend: rand(15, 28),
+                    shoeRental: rand(65, 85),
+                    // F&B
+                    fbRevPerBowler: (parseFloat(rand(10, 20)) * isSummer).toFixed(2),
+                    barSpendRatio: rand(20, 45),
+                    foodCost: rand(22, 30),
+                    pourCost: rand(15, 22),
+                    // Maintenance
+                    fbs: rand(1500, 3200), 
+                    resolutionTime: rand(2, 8),
+                    downtime: rand(0.5, 3.5),
+                    partsCost: rand(5, 15),
+                    // Pro Shop
+                    frontDeskEff: rand(150, 300),
+                    bookingConv: rand(25, 55),
+                    proShopMargin: rand(45, 65),
+                    crossSellRate: rand(10, 30)
+                });
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+            globalDB = db;
+        }
+
+        // --- UI LOGIC ---
+        function openTab(evt, tabName) {
+            document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
+            document.querySelectorAll(".tab-btn").forEach(el => el.classList.remove("active"));
+            document.getElementById(tabName).classList.add("active");
+            evt.currentTarget.classList.add("active");
+            if (tabName === 'dashboardTab') renderCharts();
+        }
+
+        function toggleRow(rowNum) {
+            const isChecked = document.getElementById(`c${rowNum}`).checked;
+            const row = document.getElementById(`row${rowNum}`);
+            const els = row.querySelectorAll('select');
+            if (isChecked) {
+                row.classList.remove('disabled');
+                els.forEach(el => el.disabled = false);
+            } else {
+                row.classList.add('disabled');
+                els.forEach(el => el.disabled = true);
+            }
+        }
+
+        function updatePeriodOptions(rowNum) {
+            const type = document.getElementById(`t${rowNum}`).value;
+            const valSelect = document.getElementById(`v${rowNum}`);
+            valSelect.innerHTML = '';
+            
+            if (type === 'year') {
+                valSelect.innerHTML = '<option value="all">All Year</option>';
+            } else if (type === 'semester') {
+                valSelect.innerHTML = '<option value="1">H1 (Jan - Jun)</option><option value="2">H2 (Jul - Dec)</option>';
+            } else if (type === 'trimester') {
+                valSelect.innerHTML = '<option value="1">Q1 (Jan-Mar)</option><option value="2">Q2 (Apr-Jun)</option><option value="3">Q3 (Jul-Sep)</option><option value="4">Q4 (Oct-Dec)</option>';
+            } else if (type === 'month') {
+                const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                months.forEach((m, i) => {
+                    valSelect.innerHTML += `<option value="${i+1}">${m}</option>`;
+                });
+            }
+        }
+
+        // --- DATA FILTERING ENGINE ---
+        function getFilteredData(year, type, val) {
+            return globalDB.filter(row => {
+                if (row.year != year) return false;
+                if (type === 'semester') {
+                    if (val == 1 && row.month > 6) return false;
+                    if (val == 2 && row.month <= 6) return false;
+                } else if (type === 'trimester') {
+                    const q = Math.ceil(row.month / 3);
+                    if (q != val) return false;
+                } else if (type === 'month') {
+                    if (row.month != val) return false;
+                }
+                return true;
+            });
+        }
+
+        function getReportLabel(year, type, val) {
+            if (type === 'year') return `${year} Total`;
+            if (type === 'semester') return `${year} H${val}`;
+            if (type === 'trimester') return `${year} Q${val}`;
+            const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            return `${months[val-1]} ${year}`;
+        }
+
+        // --- CHART RENDERING (PLOTLY) ---
+        function renderCharts() {
+            const category = document.getElementById("categorySelect").value;
+            const config = { responsive: true, displayModeBar: false };
+            
+            // Build datasets based on active rows
+            const datasets = [];
+            [1, 2, 3].forEach((i, index) => {
+                const isEnabled = i === 1 || document.getElementById(`c${i}`).checked;
+                if (isEnabled) {
+                    const year = document.getElementById(`y${i}`).value;
+                    const type = document.getElementById(`t${i}`).value;
+                    const val = document.getElementById(`v${i}`).value;
+                    const data = getFilteredData(year, type, val);
+                    const label = getReportLabel(year, type, val);
+                    
+                    // Normalize X-Axis so lines overlay perfectly regardless of exact date
+                    const xAxis = Array.from({length: data.length}, (_, idx) => `Day ${idx + 1}`);
+                    
+                    datasets.push({ data, label, xAxis, color: traceColors[index] });
+                }
+            });
+
+            // Helper to build Plotly traces for a specific metric
+            const buildTraces = (metricKey, chartType = 'scatter') => {
+                return datasets.map(ds => ({
+                    x: ds.xAxis, 
+                    y: ds.data.map(d => parseFloat(d[metricKey])), 
+                    type: chartType, 
+                    mode: chartType === 'scatter' ? 'lines' : undefined,
+                    name: ds.label, 
+                    line: chartType === 'scatter' ? {color: ds.color, width: 2} : undefined,
+                    marker: chartType === 'bar' ? {color: ds.color} : undefined
+                }));
+            };
+
+            if (category === "bowling") {
+                Plotly.newPlot('chart1', buildTraces('lineage'), { title: 'Lineage per Operational Hour' }, config);
+                Plotly.newPlot('chart2', buildTraces('leagueUtil', 'bar'), { title: 'League Utilization %', barmode: 'group' }, config);
+                Plotly.newPlot('chart3', buildTraces('avgBowlerSpend'), { title: 'Average Bowler Spend ($)' }, config);
+                Plotly.newPlot('chart4', buildTraces('shoeRental'), { title: 'Shoe Rental Conversion Rate (%)' }, config);
+            } 
+            else if (category === "fb") {
+                Plotly.newPlot('chart1', buildTraces('fbRevPerBowler', 'bar'), { title: 'F&B Revenue per Bowler ($)', barmode: 'group' }, config);
+                Plotly.newPlot('chart2', buildTraces('foodCost'), { title: 'Food Cost %' }, config);
+                Plotly.newPlot('chart3', buildTraces('pourCost'), { title: 'Pour Cost %' }, config);
+                Plotly.newPlot('chart4', buildTraces('barSpendRatio'), { title: 'Bar Spend Ratio (% of Total Rev)' }, config);
+            }
+            else if (category === "maintenance") {
+                Plotly.newPlot('chart1', buildTraces('fbs'), { title: 'Frames Between Stops (FBS)' }, config);
+                Plotly.newPlot('chart2', buildTraces('resolutionTime', 'bar'), { title: 'Avg Resolution Time (Min)', barmode: 'group' }, config);
+                Plotly.newPlot('chart3', buildTraces('downtime'), { title: 'Pinsetter Downtime (%)' }, config);
+                Plotly.newPlot('chart4', buildTraces('partsCost'), { title: 'Maintenance Parts Cost per Lane ($)' }, config);
+            }
+            else if (category === "proshop") {
+                Plotly.newPlot('chart1', buildTraces('frontDeskEff'), { title: 'Front Desk Efficiency ($/Hr)' }, config);
+                Plotly.newPlot('chart2', buildTraces('bookingConv', 'bar'), { title: 'Event Booking Conversion (%)', barmode: 'group' }, config);
+                Plotly.newPlot('chart3', buildTraces('proShopMargin'), { title: 'Pro Shop Gross Margin (%)' }, config);
+                Plotly.newPlot('chart4', buildTraces('crossSellRate', 'bar'), { title: 'League Bowler Cross-Sell Rate (%)', barmode: 'group' }, config);
+            }
+        }
+
+        // --- IMPORT / EXPORT LOGIC ---
+        function exportDataJSON() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(globalDB));
+            const dlAnchorElem = document.createElement('a');
+            dlAnchorElem.setAttribute("href", dataStr);
+            dlAnchorElem.setAttribute("download", "boardwalk_3yr_backup.json");
+            document.body.appendChild(dlAnchorElem);
+            dlAnchorElem.click();
+            dlAnchorElem.remove();
+        }
+
+        function importDataJSON() {
+            const fileInput = document.getElementById('jsonFileInput');
+            const statusText = document.getElementById('uploadStatus');
+            
+            if (!fileInput.files.length) {
+                alert("Please select a .json backup file first.");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    globalDB = JSON.parse(e.target.result);
+                    statusText.style.display = "block";
+                    setTimeout(() => { statusText.style.display = "none"; }, 4000);
+                    renderCharts(); // Refresh charts with new data
+                } catch (err) {
+                    alert("Error parsing JSON file. Please ensure it is a valid backup.");
+                }
+            }
+            reader.readAsText(fileInput.files[0]);
+        }
+
+        // --- PRESENTATION BUILDER ---
+        function generatePresentation() {
+            // Generates based on Report 1
+            const year = document.getElementById(`y1`).value;
+            const type = document.getElementById(`t1`).value;
+            const val = document.getElementById(`v1`).value;
+            const label = getReportLabel(year, type, val);
+            const data = getFilteredData(year, type, val);
+            
+            const calcAvg = (key) => (data.reduce((sum, row) => sum + parseFloat(row[key]), 0) / data.length).toFixed(2);
+
+            const avgLineage = calcAvg('lineage');
+            const avgFBS = calcAvg('fbs');
+            const avgFBSpend = calcAvg('fbRevPerBowler');
+            const avgMargin = calcAvg('proShopMargin');
+
+            const output = document.getElementById("summaryOutput");
+            output.style.display = "block";
+            output.innerHTML = `
+                <h3 style="color: #0b3d91;">📊 Operations Summary: ${label}</h3>
+                <p><strong>Executive Insights for Boardwalk Bowl:</strong></p>
+                <ul>
+                    <li><strong>Bowling Efficiency:</strong> During ${label}, the center averaged a lineage of <strong>${avgLineage} per hour</strong>.</li>
+                    <li><strong>F&B Performance:</strong> Coasters Bar & Grill captured an average of <strong>$${avgFBSpend} per bowler</strong> in cross-sell revenue.</li>
+                    <li><strong>Machine Reliability:</strong> Pinsetters operated at an impressive <strong>${parseFloat(avgFBS).toFixed(0)} Frames Between Stops (FBS)</strong>.</li>
+                    <li><strong>Pro Shop Mechanics:</strong> High-margin drilling services and inventory drove an average profit margin of <strong>${avgMargin}%</strong>.</li>
+                </ul>
+            `;
+        }
+
+        // --- INITIALIZATION ---
+        window.onload = () => {
+            generate3YearsData();
+            updatePeriodOptions(1);
+            renderCharts();
+        };
+    </script>
+</body>
+</html>
